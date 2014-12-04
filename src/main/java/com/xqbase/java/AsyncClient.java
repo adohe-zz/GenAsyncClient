@@ -1,5 +1,6 @@
 package com.xqbase.java;
 
+import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
@@ -21,6 +22,7 @@ public class AsyncClient implements Closeable {
     public static final int DEFAULT_SOCKET_TIMEOUT = 10 * 1000;
     public static final int DEFAULT_CONNECTION_REQUEST_TIMEOUT = 10 * 1000;
     public static final int DEFAULT_CONNECT_TIMEOUT = 10 * 1000;
+    public static final boolean DEFAULT_REDIRECTS_ENABLED = true;
     public static final int DEFAULT_BUFFER_SIZE = 8192;
     public static final int DEFAULT_MAX_RETRIES = 5;
     public static final int DEFAULT_RETRY_SLEEP_TIME_MILLIS = 1500;
@@ -29,9 +31,14 @@ public class AsyncClient implements Closeable {
     private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
     private int connectionRequestTimeout = DEFAULT_CONNECTION_REQUEST_TIMEOUT;
     private int defaultMaxPerRoute = DEFAULT_MAX_CONNECTIONS_PER_ROUTE;
+    private boolean redirectsEnabled = DEFAULT_REDIRECTS_ENABLED;
+    private boolean relativeRedirectsAllowed = DEFAULT_REDIRECTS_ENABLED;
+    private boolean circularRedirectsAllowed = DEFAULT_REDIRECTS_ENABLED;
 
     private final CloseableHttpAsyncClient httpAsyncClient;
     private PoolingNHttpClientConnectionManager connManager;
+    private RequestConfig requestConfig;
+    private RedirectStrategy redirectStrategy;
 
     public AsyncClient() throws IOException {
 
@@ -57,9 +64,16 @@ public class AsyncClient implements Closeable {
                 .setProxyPreferredAuthSchemes(Arrays.asList(AuthSchemes.BASIC))
                 .build();
 
+        // Update the request level configuration
+        updateRequestConfig();
+
+        // Create a custom Redirect Handler
+        redirectStrategy = new RedirectHandler(requestConfig);
+
         httpAsyncClient = HttpAsyncClients.custom()
                 .setConnectionManager(connManager)
                 .setDefaultRequestConfig(defaultRequestConfig)
+                .setRedirectStrategy(redirectStrategy)
                 .build();
     }
 
@@ -102,7 +116,9 @@ public class AsyncClient implements Closeable {
      * @param connectTimeout connect timeout
      */
     public void setConnectTimeout(int connectTimeout) {
+        connectTimeout = connectTimeout< 0 ? DEFAULT_CONNECT_TIMEOUT : connectTimeout;
         this.connectTimeout = connectTimeout;
+        updateRequestConfig();
     }
 
     /**
@@ -126,7 +142,9 @@ public class AsyncClient implements Closeable {
      * @param socketTimeout socket timeout
      */
     public void setSocketTimeout(int socketTimeout) {
+        socketTimeout = socketTimeout < 0 ? DEFAULT_SOCKET_TIMEOUT : socketTimeout;
         this.socketTimeout = socketTimeout;
+        updateRequestConfig();
     }
 
     /**
@@ -150,7 +168,39 @@ public class AsyncClient implements Closeable {
      * @param connectionRequestTimeout connection request timeout
      */
     public void setConnectionRequestTimeout(int connectionRequestTimeout) {
+        connectionRequestTimeout = connectionRequestTimeout < 0 ? DEFAULT_CONNECTION_REQUEST_TIMEOUT : connectionRequestTimeout;
         this.connectionRequestTimeout = connectionRequestTimeout;
+        updateRequestConfig();
+    }
+
+    public void setEnableRedirects(final boolean enableRedirects, final boolean enableRelativeRedirects, final boolean enableCircularRedirects) {
+        this.redirectsEnabled = enableRedirects;
+        this.relativeRedirectsAllowed = enableRelativeRedirects;
+        this.circularRedirectsAllowed = enableCircularRedirects;
+        updateRequestConfig();
+        redirectStrategy = new RedirectHandler(requestConfig);
+    }
+
+    public void setEnableRedirects(final boolean enableRedirects, final boolean enableRelativeRedirects) {
+        setEnableRedirects(enableRedirects, enableRelativeRedirects, true);
+    }
+
+    public void setEnableRedirects(final boolean enableRedirects) {
+        setEnableRedirects(enableRedirects, enableRedirects, enableRedirects);
+    }
+
+    /**
+     * Update the request level configuration
+     */
+    private void updateRequestConfig() {
+        requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(connectionRequestTimeout)
+                .setConnectTimeout(connectTimeout)
+                .setSocketTimeout(socketTimeout)
+                .setRedirectsEnabled(redirectsEnabled)
+                .setRelativeRedirectsAllowed(relativeRedirectsAllowed)
+                .setCircularRedirectsAllowed(circularRedirectsAllowed)
+                .build();
     }
 
     @Override
