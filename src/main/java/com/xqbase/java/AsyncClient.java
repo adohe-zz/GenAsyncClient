@@ -1,19 +1,29 @@
 package com.xqbase.java;
 
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
+import org.apache.http.util.EntityUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.Callable;
 
 public class AsyncClient implements Closeable {
 
@@ -173,6 +183,12 @@ public class AsyncClient implements Closeable {
         updateRequestConfig();
     }
 
+    /**
+     * Enable redirects or not
+     * @param enableRedirects
+     * @param enableRelativeRedirects
+     * @param enableCircularRedirects
+     */
     public void setEnableRedirects(final boolean enableRedirects, final boolean enableRelativeRedirects, final boolean enableCircularRedirects) {
         this.redirectsEnabled = enableRedirects;
         this.relativeRedirectsAllowed = enableRelativeRedirects;
@@ -203,8 +219,69 @@ public class AsyncClient implements Closeable {
                 .build();
     }
 
+    public void get(String url) {
+        HttpGet get = new HttpGet(url);
+        get.setConfig(requestConfig);
+        sendRequest(null, get);
+    }
+
+    public void post(String url, HttpEntity entity) {
+
+    }
+
+    private void sendRequest(HttpClientContext context, HttpUriRequest request) {
+
+    }
+
     @Override
     public void close() throws IOException {
         httpAsyncClient.close();
+    }
+
+    private class AsyncTransformation implements AsyncFunction<HttpResponse, Object> {
+
+        private final ListeningExecutorService transformPool;
+        private final Class clazz;
+
+        private Serializer serializer = new DefaultJsonSerializer();
+
+        public AsyncTransformation(final ListeningExecutorService transformPool, Class clazz) {
+            this.transformPool = transformPool;
+            this.clazz = clazz;
+        }
+
+        @Override
+        public ListenableFuture<Object> apply(HttpResponse response) throws Exception {
+            return this.transformPool.submit(new TransformWorker(response, this.clazz));
+        }
+
+        private void close(HttpResponse response) {
+            if (response == null) {
+                return;
+            }
+
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                EntityUtils.consumeQuietly(entity);
+            }
+        }
+
+        private class TransformWorker implements Callable {
+
+            private final HttpResponse response;
+            private final Class clazz;
+
+            public TransformWorker(final HttpResponse response, final Class clazz) {
+                this.response = response;
+                this.clazz = clazz;
+            }
+
+            @Override
+            public Object call() throws Exception {
+                Object obj = serializer.deserialize(clazz, response.getEntity().getContent());
+                close(response);
+                return obj;
+            }
+        }
     }
 }
