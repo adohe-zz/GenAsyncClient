@@ -25,6 +25,8 @@ import org.apache.http.util.EntityUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 
@@ -231,11 +233,7 @@ public class AsyncClient implements Closeable {
     }
 
     public void get(String url, RequestParams params) {
-
-    }
-
-    public void get(String url, Header[] headers, RequestParams params) {
-
+        sendRequest(null, new HttpGet(getUrlWithQueryString(false, url, params)));
     }
 
     /**
@@ -265,6 +263,39 @@ public class AsyncClient implements Closeable {
     @Override
     public void close() throws IOException {
         httpAsyncClient.close();
+    }
+
+    /**
+     * Will encode url, if not disabled, and adds params on the end of it
+     *
+     * @param url             String with URL, should be valid URL without params
+     * @param params          RequestParams to be appended on the end of URL
+     * @param shouldEncodeUrl whether url should be encoded (replaces spaces with %20)
+     * @return encoded url if requested with params appended if any available
+     */
+    public static String getUrlWithQueryString(boolean shouldEncodeUrl, String url, RequestParams params) {
+        if (url == null) {
+            return null;
+        }
+
+        if (shouldEncodeUrl) {
+            try {
+                url = URLEncoder.encode(url, "utf-8");
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (params != null) {
+            String paramString = params.getParamString().trim();
+
+            if (!paramString.equals("") && !paramString.equals("?")) {
+                url += url.contains("?") ? "&" : "?";
+                url += paramString;
+            }
+        }
+
+        return url;
     }
 
     private class AsyncTransformation implements AsyncFunction<HttpResponse, Object> {
