@@ -3,13 +3,16 @@ package com.xqbase.java;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
@@ -219,18 +222,44 @@ public class AsyncClient implements Closeable {
                 .build();
     }
 
+    /**
+     * The simple get interface
+     * @param url request url
+     */
     public void get(String url) {
-        HttpGet get = new HttpGet(url);
-        get.setConfig(requestConfig);
-        sendRequest(null, get);
+        get(url, null);
     }
 
-    public void post(String url, HttpEntity entity) {
+    public void get(String url, RequestParams params) {
 
+    }
+
+    public void get(String url, Header[] headers, RequestParams params) {
+
+    }
+
+    /**
+     * The simple post interface
+     * @param url request url
+     * @param entity request body
+     */
+    public void post(String url, HttpEntity entity) {
+        HttpPost post = new HttpPost(url);
+        post.setConfig(requestConfig);
+        post.setEntity(entity);
+        sendRequest(null, post);
     }
 
     private void sendRequest(HttpClientContext context, HttpUriRequest request) {
 
+    }
+
+    private HttpEntityEnclosingRequestBase addEntityToRequestBase(HttpEntityEnclosingRequestBase requestBase, HttpEntity entity) {
+        if (requestBase != null) {
+            requestBase.setEntity(entity);
+        }
+
+        return requestBase;
     }
 
     @Override
