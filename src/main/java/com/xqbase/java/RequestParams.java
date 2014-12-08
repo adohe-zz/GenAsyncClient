@@ -71,6 +71,12 @@ public class RequestParams {
         }
     }
 
+    private void init(){
+        urlParams = new ConcurrentHashMap<String, String>();
+        fileParams = new ConcurrentHashMap<String, FileWrapper>();
+        urlParamsWithArray = new ConcurrentHashMap<String, ArrayList<String>>();
+    }
+
     /**
      * Adds a key/value string pair to the request.
      * @param key the key name for the new param.
@@ -230,12 +236,6 @@ public class RequestParams {
         }
 
         return entity;
-    }
-
-    private void init(){
-        urlParams = new ConcurrentHashMap<String, String>();
-        fileParams = new ConcurrentHashMap<String, FileWrapper>();
-        urlParamsWithArray = new ConcurrentHashMap<String, ArrayList<String>>();
     }
 
     protected List<BasicNameValuePair> getParamsList() {

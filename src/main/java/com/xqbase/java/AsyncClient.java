@@ -20,6 +20,7 @@ import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.util.EntityUtils;
 
